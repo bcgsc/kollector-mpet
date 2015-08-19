@@ -1,0 +1,112 @@
+#!/bin/bash
+
+PROGRAM=$(basename $0)
+read -r -d '' USAGE <<HEREDOC
+Usage: $PROGRAM [options] <seed_mpet.fa> <pet_read1.fq> <pet_read2.fq>
+Gather PET reads for targeted assembly of MPET fragment(s).
+
+Options:
+    -a FILE   align reads to reference genome FILE after
+              each iteration [disabled]
+    -k N      k-mer size for read overlap detection [25]
+    -m N      max iterations for recruiting PET reads [10]
+    -n N      max k-mers to recruit in total [25000]
+    -o FILE   output file prefix ['kollector']
+    -s N      min match score for recruiting reads; floating
+              point number between 0 and 1 [0.3]
+HEREDOC
+
+set -eu -o pipefail
+
+# default values for options
+max_iterations=15
+k=25
+prefix=kollect
+s=0.3
+max_kmers=25000
+
+# parse command line options
+while getopts :a:d:k:m:n:o:s: opt; do
+	case $opt in
+		a) ref=$OPTARG;;
+		d) mpet_dist=$OPTARG;;
+		k) k=$OPTARG;;
+		m) max_iterations=$OPTARG;;
+		n) max_kmers=$OPTARG;;
+		o) prefix=$OPTARG;;
+		s) s=$OPTARG;;
+		\?) echo "$PROGRAM: invalid option: $OPTARG"; exit 1;;
+	esac
+done
+shift $((OPTIND-1))
+
+# we expect exactly 3 file arguments
+if [ $# -ne 3 ]; then
+	echo "$USAGE" >&2
+	exit 1;
+fi
+seed_mp=$1; shift;
+pet1=$1; shift;
+pet2=$1; shift;
+
+echo '-----------------------------------------'
+echo "Recruiting a maximum of $max_kmers k-mers"
+echo '-----------------------------------------'
+
+# align seed MPETs
+if [ "${ref+defined}" = 'defined' ]; then
+	echo '-----------------------------------'
+	echo "Aligning seed MPET reads..."
+	echo '-----------------------------------'
+	kollector-align.mk query=$seed_mp ref=$ref
+fi
+
+# build seed FASTA file for recruiting PET reads
+echo '---------------------------'
+echo 'Building seed FASTA file...'
+echo '---------------------------'
+kollector-tag.mk name=$prefix seed_mp=$seed_mp pe="$pet1 $pet2" n=$max_kmers
+
+# align seed MPETs and PETs
+if [ "${ref+defined}" = 'defined' ]; then
+	echo '-----------------------------------'
+	echo "Aligning seed MPET and PET reads..."
+	echo '-----------------------------------'
+	kollector-align.mk query=$prefix.seed.fa ref=$ref
+fi
+
+for i in $(seq 1 $max_iterations); do
+
+	# recruit PETs with paired overlap to previously recruited PETs
+	echo '--------------------------------------'
+	echo "Recruiting PET reads (iteration $i)..."
+	echo '--------------------------------------'
+	if [ $i -eq 1 ]; then
+		seed=$prefix.seed.fa
+	else
+		seed=$prefix-$(($i-1)).fa
+	fi
+	kollector-recruit.mk name=$prefix-$i seed=$seed pe="$pet1 $pet2" s=$s n=$max_kmers
+
+	# align PETs gathered so far to reference genome (debugging)
+	if [ "${ref+defined}" = 'defined' ]; then
+		echo '------------------------------------'
+		echo "Aligning PET reads (iteration $i)..."
+		echo '------------------------------------'
+		kollector-align.mk query=$prefix-$i.fa ref=$ref
+	fi
+	
+	# check for stopping condition
+	kmers=$(awk -F= '$1=="num_entries" {print $2}' $prefix-$i.txt)
+	echo '---------------------------------------------------------'
+	echo "Recruited $kmers distinct k-mers so far (iteration $i)..."
+	echo '---------------------------------------------------------'
+	if [ $kmers -ge $max_kmers ]; then
+		echo '---------------------------------------------------------------'
+		echo "Stopping. Recruited k-mers ($kmers) exceeded limit ($max_kmers)"
+		echo '---------------------------------------------------------------'
+		break
+	fi
+
+done
+ln -s $prefix-$i.fa $prefix.fa
