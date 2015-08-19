@@ -2,6 +2,7 @@ Script for targeted assembly of MPET fragments using PET reads. These are wrappe
 
 ```
 $ kollector-mpet
+Usage: kollector-mpet [options] <seed_mpet.fa> <pet_read1.fq> <pet_read2.fq>
 Gather PET reads for targeted assembly of MPET fragment(s).
 
 Options:
