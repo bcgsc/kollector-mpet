@@ -20,7 +20,7 @@ n?=30000
 # meta rules
 #------------------------------------------------------------
 
-.PHONY: check-params seed 
+.PHONY: check-params seed
 
 default: seed
 
@@ -55,7 +55,7 @@ $(name).seed_mp.bf: $(seed_mp).fai
 
 # get seed PET (PETs with single-end matches to seed MPET)
 $(name).seed_pe.fa.gz: $(name).seed_mp.bf $(pe)
-	biobloomcategorizer -d $(name).seed_mp -f $(name).seed_mp.bf -t $j \
+	biobloomcategorizer -t $j -d $(name).seed_mp -f $(name).seed_mp.bf -t $j \
 		-s $s -e -i $(pe) | gzip > $@.partial
 	mv $@.partial $@
 

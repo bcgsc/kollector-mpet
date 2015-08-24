@@ -8,6 +8,7 @@ Gather PET reads for targeted assembly of MPET fragment(s).
 Options:
     -a FILE   align reads to reference genome FILE after
               each iteration [disabled]
+    -j N      threads [1]
     -k N      k-mer size for read overlap detection [25]
     -m N      max iterations for recruiting PET reads [10]
     -n N      max k-mers to recruit in total [25000]
@@ -20,16 +21,18 @@ set -eu -o pipefail
 
 # default values for options
 max_iterations=15
+j=1
 k=25
 prefix=kollect
 s=0.3
 max_kmers=25000
 
 # parse command line options
-while getopts :a:d:k:m:n:o:s: opt; do
+while getopts :a:d:j:k:m:n:o:s: opt; do
 	case $opt in
 		a) ref=$OPTARG;;
 		d) mpet_dist=$OPTARG;;
+		j) j=$OPTARG;;
 		k) k=$OPTARG;;
 		m) max_iterations=$OPTARG;;
 		n) max_kmers=$OPTARG;;
@@ -58,21 +61,21 @@ if [ "${ref+defined}" = 'defined' ]; then
 	echo '-----------------------------------'
 	echo "Aligning seed MPET reads..."
 	echo '-----------------------------------'
-	kollector-align.mk query=$seed_mp ref=$ref
+	kollector-align.mk query=$seed_mp ref=$ref j=$j
 fi
 
 # build seed FASTA file for recruiting PET reads
 echo '---------------------------'
 echo 'Building seed FASTA file...'
 echo '---------------------------'
-kollector-tag.mk name=$prefix seed_mp=$seed_mp pe="$pet1 $pet2" n=$max_kmers
+kollector-tag.mk name=$prefix seed_mp=$seed_mp pe="$pet1 $pet2" n=$max_kmers j=$j
 
 # align seed MPETs and PETs
 if [ "${ref+defined}" = 'defined' ]; then
 	echo '-----------------------------------'
 	echo "Aligning seed MPET and PET reads..."
 	echo '-----------------------------------'
-	kollector-align.mk query=$prefix.seed.fa ref=$ref
+	kollector-align.mk query=$prefix.seed.fa ref=$ref j=$j
 fi
 
 for i in $(seq 1 $max_iterations); do
@@ -86,14 +89,14 @@ for i in $(seq 1 $max_iterations); do
 	else
 		seed=$prefix-$(($i-1)).fa
 	fi
-	kollector-recruit.mk name=$prefix-$i seed=$seed pe="$pet1 $pet2" s=$s n=$max_kmers
+	kollector-recruit.mk name=$prefix-$i seed=$seed pe="$pet1 $pet2" s=$s n=$max_kmers j=$j
 
 	# align PETs gathered so far to reference genome (debugging)
 	if [ "${ref+defined}" = 'defined' ]; then
 		echo '------------------------------------'
 		echo "Aligning PET reads (iteration $i)..."
 		echo '------------------------------------'
-		kollector-align.mk query=$prefix-$i.fa ref=$ref
+		kollector-align.mk query=$prefix-$i.fa ref=$ref j=$j
 	fi
 	
 	# check for stopping condition

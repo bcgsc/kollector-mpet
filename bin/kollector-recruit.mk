@@ -57,7 +57,7 @@ $(name).bf: $(seed).fai $(pe)
 
 # build FASTA for recruited PETs
 $(name).fa: $(name).bf
-	biobloomcategorizer -d $(name) -f $(name).bf -t $j -s 0.95 -e $(pe) | \
+	biobloomcategorizer -t $j -d $(name) -f $(name).bf -t $j -s 0.95 -e $(pe) | \
 		abyss-tofastq --fasta > $@.partial
 	mv $@.partial $@
 	mv _summary.tsv $(name).tsv
