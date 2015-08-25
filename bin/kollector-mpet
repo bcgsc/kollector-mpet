@@ -13,8 +13,10 @@ Options:
     -m N      max iterations for recruiting PET reads [10]
     -n N      max k-mers to recruit in total [25000]
     -o FILE   output file prefix ['kollector']
-    -s N      min match score for recruiting reads; floating
-              point number between 0 and 1 [0.3]
+    -s N      min score for recruiting seed PETs using seed MPETs;
+              floating point number between 0 and 1 [0.5]
+    -S N      min score for recruiting PETs from seed PETs and MPETs;
+              floating point number between 0 and 1 [0.3]
 HEREDOC
 
 set -eu -o pipefail
@@ -24,11 +26,12 @@ max_iterations=15
 j=1
 k=25
 prefix=kollect
-s=0.3
+s=0.5
 max_kmers=25000
+S=0.3
 
 # parse command line options
-while getopts :a:d:j:k:m:n:o:s: opt; do
+while getopts :a:d:j:k:m:n:o:s:S: opt; do
 	case $opt in
 		a) ref=$OPTARG;;
 		d) mpet_dist=$OPTARG;;
@@ -38,6 +41,7 @@ while getopts :a:d:j:k:m:n:o:s: opt; do
 		n) max_kmers=$OPTARG;;
 		o) prefix=$OPTARG;;
 		s) s=$OPTARG;;
+		S) S=$OPTARG;;
 		\?) echo "$PROGRAM: invalid option: $OPTARG"; exit 1;;
 	esac
 done
@@ -68,7 +72,8 @@ fi
 echo '---------------------------'
 echo 'Building seed FASTA file...'
 echo '---------------------------'
-kollector-tag.mk name=$prefix seed_mp=$seed_mp pe="$pet1 $pet2" n=$max_kmers j=$j
+kollector-tag.mk name=$prefix seed_mp=$seed_mp pe="$pet1 $pet2" \
+	n=$max_kmers j=$j s=$s k=$k
 
 # align seed MPETs and PETs
 if [ "${ref+defined}" = 'defined' ]; then
@@ -89,7 +94,8 @@ for i in $(seq 1 $max_iterations); do
 	else
 		seed=$prefix-$(($i-1)).fa
 	fi
-	kollector-recruit.mk name=$prefix-$i seed=$seed pe="$pet1 $pet2" s=$s n=$max_kmers j=$j
+	kollector-recruit.mk name=$prefix-$i seed=$seed pe="$pet1 $pet2" \
+		s=$S n=$max_kmers j=$j k=$k
 
 	# align PETs gathered so far to reference genome (debugging)
 	if [ "${ref+defined}" = 'defined' ]; then
