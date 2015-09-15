@@ -53,7 +53,7 @@ clean:
 # iteratively add PETs with paired matches to Bloom filter
 $(name).bf: $(seed).fai $(pe)
 	biobloommaker -k $k -p $(name) -f $(max_fpr) -t $j -n $n \
-		-r $s $(seed) $(pe)
+		-r $s $(if $(subtract),-s $(subtract)) $(seed) $(pe)
 
 # build FASTA for recruited PETs
 $(name).fa: $(name).bf
