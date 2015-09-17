@@ -7,6 +7,7 @@ Gather PET reads for targeted assembly of MPET fragment(s).
 Options:
     -a FILE   align reads to reference genome FILE after
               each iteration [disabled]
+    -h        show this help message
     -j N      threads [1]
     -k N      k-mer size for read overlap detection [25]
     -m N      max iterations for recruiting PET reads [10]
@@ -31,12 +32,14 @@ prefix=kollect
 s=0.5
 max_kmers=25000
 S=0.3
+help=0
 
 # parse command line options
-while getopts :a:d:j:k:m:n:o:r:s:S: opt; do
+while getopts :a:d:hj:k:m:n:o:r:s:S: opt; do
 	case $opt in
 		a) ref=$OPTARG;;
 		d) mpet_dist=$OPTARG;;
+		h) help=1;;
 		j) j=$OPTARG;;
 		k) k=$OPTARG;;
 		m) max_iterations=$OPTARG;;
@@ -49,6 +52,12 @@ while getopts :a:d:j:k:m:n:o:r:s:S: opt; do
 	esac
 done
 shift $((OPTIND-1))
+
+# -h for help message
+if [ $help -ne 0 ]; then
+	echo "$USAGE"
+	exit 0;
+fi
 
 # we expect exactly 3 file arguments
 if [ $# -ne 3 ]; then
