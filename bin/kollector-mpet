@@ -59,39 +59,35 @@ seed_mp=$1; shift;
 pet1=$1; shift;
 pet2=$1; shift;
 
-echo '-----------------------------------------'
-echo "Recruiting a maximum of $max_kmers k-mers"
-echo '-----------------------------------------'
+function heading() {
+	echo '-----------------------------------------'
+	echo "$@"
+	echo '-----------------------------------------'
+}
+
+heading "Recruiting a maximum of $max_kmers k-mers"
 
 # align seed MPETs
 if [ "${ref+defined}" = 'defined' ]; then
-	echo '-----------------------------------'
-	echo "Aligning seed MPET reads..."
-	echo '-----------------------------------'
+	heading "Aligning seed MPET reads..."
 	kollector-align.mk query=$seed_mp ref=$ref j=$j
 fi
 
 # build seed FASTA file for recruiting PET reads
-echo '---------------------------'
-echo 'Building seed FASTA file...'
-echo '---------------------------'
+heading 'Building seed FASTA file...'
 kollector-tag.mk name=$prefix seed_mp=$seed_mp pe="$pet1 $pet2" \
 	n=$max_kmers j=$j s=$s k=$k ${r+subtract=$r}
 
 # align seed MPETs and PETs
 if [ "${ref+defined}" = 'defined' ]; then
-	echo '-----------------------------------'
-	echo "Aligning seed MPET and PET reads..."
-	echo '-----------------------------------'
+	heading "Aligning seed MPET and PET reads..."
 	kollector-align.mk query=$prefix.seed.fa ref=$ref j=$j
 fi
 
 for i in $(seq 1 $max_iterations); do
 
 	# recruit PETs with paired overlap to previously recruited PETs
-	echo '--------------------------------------'
-	echo "Recruiting PET reads (iteration $i)..."
-	echo '--------------------------------------'
+	heading "Recruiting PET reads (iteration $i)..."
 	if [ $i -eq 1 ]; then
 		seed=$prefix.seed.fa
 	else
@@ -102,21 +98,15 @@ for i in $(seq 1 $max_iterations); do
 
 	# align PETs gathered so far to reference genome (debugging)
 	if [ "${ref+defined}" = 'defined' ]; then
-		echo '------------------------------------'
-		echo "Aligning PET reads (iteration $i)..."
-		echo '------------------------------------'
+		heading "Aligning PET reads (iteration $i)..."
 		kollector-align.mk query=$prefix-$i.fa ref=$ref j=$j
 	fi
 	
 	# check for stopping condition
 	kmers=$(awk -F= '$1=="num_entries" {print $2}' $prefix-$i.txt)
-	echo '---------------------------------------------------------'
-	echo "Recruited $kmers distinct k-mers so far (iteration $i)..."
-	echo '---------------------------------------------------------'
+	heading "Recruited $kmers distinct k-mers so far (iteration $i)..."
 	if [ $kmers -ge $max_kmers ]; then
-		echo '---------------------------------------------------------------'
-		echo "Stopping. Recruited k-mers ($kmers) exceeded limit ($max_kmers)"
-		echo '---------------------------------------------------------------'
+		heading "Stopping. Recruited k-mers ($kmers) exceeded limit ($max_kmers)"
 		break
 	fi
 
