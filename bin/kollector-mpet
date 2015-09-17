@@ -120,4 +120,5 @@ for i in $(seq 1 $max_iterations); do
 	fi
 
 done
+rm -f $prefix.fa
 ln -s $prefix-$i.fa $prefix.fa
