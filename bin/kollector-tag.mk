@@ -32,8 +32,8 @@ ifndef name
 endif
 
 check-params: check-name-param
-ifndef seed_mp
-	$(error missing required param 'seed_mp' (FASTA/FASTQ file(s)))
+ifndef mp
+	$(error missing required param 'mp' (FASTA/FASTQ file(s)))
 endif
 ifndef pe
 	$(error missing required param 'pe' (2 FASTA/FASTQ file(s)))
@@ -50,10 +50,17 @@ clean: check-name-param
 %.fai: %
 	samtools faidx $*
 
+# interleave MPET and convert to FASTA
+# (BioBloomTools requires a single interleaved FASTA for input
+# seed sequences.)
+$(name).seed_mp.fa: $(mp)
+	seqtk mergepe $(mp) | seqtk seq -A > $@.partial
+	mv $@.partial $@
+
 # build Bloom filter for seed MPET
-$(name).seed_mp.bf: $(seed_mp).fai
+$(name).seed_mp.bf: $(name).seed_mp.fa.fai
 	biobloommaker -k $k -p $(name).seed_mp -f $(max_fpr) -t $j \
-		-n $n $(seed_mp) $(if $(subtract),-s $(subtract))
+		-n $n $(name).seed_mp.fa $(if $(subtract),-s $(subtract))
 
 # get seed PET (PETs with single-end matches to seed MPET)
 $(name).seed_pe.fa.gz: $(name).seed_mp.bf $(pe)
@@ -62,6 +69,6 @@ $(name).seed_pe.fa.gz: $(name).seed_mp.bf $(pe)
 	mv $@.partial $@
 
 # combine seed MPET reads and seed PET reads
-$(name).seed.fa: $(seed_mp) $(name).seed_pe.fa.gz
+$(name).seed.fa: $(name).seed_mp.fa $(name).seed_pe.fa.gz
 	abyss-tofastq --fasta $^ > $@.partial
 	mv $@.partial $@

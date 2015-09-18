@@ -35,8 +35,7 @@ endif
 #------------------------------------------------------------
 
 $(name).sam.gz: $(query)
-	bwa mem -t $j $(ref) <(abyss-tofastq --fasta $^ | awk '(NR-1)%4<=1') \
-		<(abyss-tofastq --fasta $^ | awk '(NR-1)%4>=2') | \
+	bwa mem -t $j $(ref) $(query) | \
 		gzip > $@.partial
 	mv $@.partial $@
 

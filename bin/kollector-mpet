@@ -6,12 +6,13 @@
 
 PROGRAM=$(basename $0)
 read -r -d '' USAGE <<HEREDOC
-Usage: $PROGRAM [options] <seed_mpet.fa> <pet_read1.fq> <pet_read2.fq>
+Usage: $PROGRAM [options] <mpet_read1.fq> <mpet_read2.fq> <pet_read1.fq> <pet_read2.fq>
+
 Gather PET reads for targeted assembly of MPET fragment(s).
 
 Options:
     -a FILE   align reads to reference genome FILE after
-              each iteration [disabled]
+              each iteration (for debugging) [disabled]
     -C        don't clean up intermediate files (for debugging)
     -h        show this help message
     -j N      threads [1]
@@ -74,12 +75,13 @@ if [ $help -ne 0 ]; then
 	exit 0;
 fi
 
-# we expect exactly 3 file arguments
-if [ $# -ne 3 ]; then
+# we expect exactly 4 file arguments
+if [ $# -ne 4 ]; then
 	echo "$USAGE" >&2
 	exit 1;
 fi
-seed_mp=$1; shift;
+mpet1=$1; shift;
+mpet2=$1; shift;
 pet1=$1; shift;
 pet2=$1; shift;
 
@@ -103,12 +105,12 @@ heading "Recruiting a maximum of $max_kmers k-mers"
 # align seed MPETs
 if [ "${ref+defined}" = 'defined' ]; then
 	heading "Aligning seed MPET reads..."
-	kollector-align.mk query=$seed_mp ref=$ref j=$j name=$(basename $seed_mp)
+	kollector-align.mk query="$mpet1 $mpet2" ref=$ref j=$j name=$(prefix).seed_mp
 fi
 
 # build seed FASTA file for recruiting PET reads
 heading 'Building seed FASTA file...'
-kollector-tag.mk name=$prefix seed_mp=$seed_mp pe="$pet1 $pet2" \
+kollector-tag.mk name=$prefix mp="$mpet1 $mpet2" pe="$pet1 $pet2" \
 	n=$max_kmers j=$j s=$s k=$K ${r+subtract=$r}
 
 # align seed MPETs and PETs
@@ -190,4 +192,4 @@ fi
 #------------------------------------------------------------
 
 kollector-extract.mk name=$prefix-frags contigs=$prefix-contigs.fa.gz \
-	mpet=$seed_mp j=$j
+	mpet="$mpet1 $mpet2" j=$j
