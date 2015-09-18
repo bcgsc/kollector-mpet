@@ -1,4 +1,9 @@
 #!/bin/bash
+
+#------------------------------------------------------------
+# Usage
+#------------------------------------------------------------
+
 PROGRAM=$(basename $0)
 read -r -d '' USAGE <<HEREDOC
 Usage: $PROGRAM [options] <seed_mpet.fa> <pet_read1.fq> <pet_read2.fq>
@@ -24,6 +29,10 @@ Options:
 HEREDOC
 
 set -eu -o pipefail
+
+#------------------------------------------------------------
+# Parse command line opts
+#------------------------------------------------------------
 
 # default values for options
 max_iterations=15
@@ -71,6 +80,10 @@ seed_mp=$1; shift;
 pet1=$1; shift;
 pet2=$1; shift;
 
+#------------------------------------------------------------
+# Helper functions
+#------------------------------------------------------------
+
 # print progress message
 function heading() {
 	echo '-----------------------------------------'
@@ -79,6 +92,10 @@ function heading() {
 }
 
 heading "Recruiting a maximum of $max_kmers k-mers"
+
+#------------------------------------------------------------
+# Tag seed MPET/PET read pairs
+#------------------------------------------------------------
 
 # align seed MPETs
 if [ "${ref+defined}" = 'defined' ]; then
@@ -96,6 +113,10 @@ if [ "${ref+defined}" = 'defined' ]; then
 	heading "Aligning seed MPET and PET reads..."
 	kollector-align.mk query=$prefix.seed.fa ref=$ref j=$j
 fi
+
+#------------------------------------------------------------
+# Iteratively recruit PET read pairs from seed PET/MPET
+#------------------------------------------------------------
 
 for i in $(seq 1 $max_iterations); do
 
