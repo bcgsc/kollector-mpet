@@ -27,6 +27,11 @@ default: recruit
 
 recruit: check-params $(name).fa
 
+check-name-param:
+ifndef name
+	$(error missing required param 'name' (output file prefix))
+endif
+
 check-params:
 ifndef name
 	$(error missing required param 'name' (output file prefix))
@@ -39,8 +44,7 @@ ifndef pe
 endif
 
 clean:
-	rm -f *.fai *.bf *.txt *.seed*.fa _summary.tsv \
-		*-4.fa *.partial
+	rm -f $(name).{fa,fa.fai,bf,txt,tsv}
 
 #------------------------------------------------------------
 # pipeline rules
@@ -57,7 +61,7 @@ $(name).bf: $(seed).fai $(pe)
 
 # build FASTA for recruited PETs
 $(name).fa: $(name).bf
-	biobloomcategorizer -t $j -d $(name) -f $(name).bf -t $j -s 0.95 -e $(pe) | \
+	biobloomcategorizer -t $j -d $(name) -f $(name).bf -t $j -s 0.99 -e $(pe) | \
 		abyss-tofastq --fasta > $@.partial
 	mv $@.partial $@
 	mv _summary.tsv $(name).tsv

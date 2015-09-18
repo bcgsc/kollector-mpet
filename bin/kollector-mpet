@@ -7,6 +7,7 @@ Gather PET reads for targeted assembly of MPET fragment(s).
 Options:
     -a FILE   align reads to reference genome FILE after
               each iteration [disabled]
+    -C        don't clean up intermediate files (for debugging)
     -h        show this help message
     -j N      threads [1]
     -k N      k-mer size for read overlap detection [25]
@@ -33,11 +34,13 @@ s=0.5
 max_kmers=25000
 S=0.3
 help=0
+clean=1
 
 # parse command line options
-while getopts :a:d:hj:k:m:n:o:r:s:S: opt; do
+while getopts :a:d:hCj:k:m:n:o:r:s:S: opt; do
 	case $opt in
 		a) ref=$OPTARG;;
+		C) clean=0;;
 		d) mpet_dist=$OPTARG;;
 		h) help=1;;
 		j) j=$OPTARG;;
@@ -68,6 +71,7 @@ seed_mp=$1; shift;
 pet1=$1; shift;
 pet2=$1; shift;
 
+# print progress message
 function heading() {
 	echo '-----------------------------------------'
 	echo "$@"
@@ -105,6 +109,15 @@ for i in $(seq 1 $max_iterations); do
 	kollector-recruit.mk name=$prefix-$i seed=$seed pe="$pet1 $pet2" \
 		s=$S n=$max_kmers j=$j k=$k ${r+subtract=$r}
 
+	# delete files from prev iteration
+	if [ $clean -eq 1 ]; then
+		if [ $i -eq 1 ]; then
+			kollector-tag.mk name=$prefix clean
+		else
+			kollector-recruit.mk name=$prefix-$(($i-1)) clean
+		fi
+	fi
+
 	# align PETs gathered so far to reference genome (debugging)
 	if [ "${ref+defined}" = 'defined' ]; then
 		heading "Aligning PET reads (iteration $i)..."
@@ -120,5 +133,12 @@ for i in $(seq 1 $max_iterations); do
 	fi
 
 done
-rm -f $prefix.fa
-ln -s $prefix-$i.fa $prefix.fa
+
+# clean up last iteration
+if [ $clean -eq 1 ]; then
+	mv $prefix-$i.fa $prefix.fa
+	kollector-recruit.mk name=$prefix-$i clean
+else
+	rm -f $prefix.fa
+	ln -s $prefix-$i.fa $prefix.fa
+fi

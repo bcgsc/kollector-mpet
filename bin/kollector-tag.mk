@@ -20,16 +20,18 @@ n?=30000
 # meta rules
 #------------------------------------------------------------
 
-.PHONY: check-params seed
+.PHONY: check-name-param check-params seed clean
 
 default: seed
 
 seed: check-params $(name).seed.fa
 
-check-params:
+check-name-param:
 ifndef name
 	$(error missing required param 'name' (output file prefix))
 endif
+
+check-params: check-name-param
 ifndef seed_mp
 	$(error missing required param 'seed_mp' (FASTA/FASTQ file(s)))
 endif
@@ -37,9 +39,8 @@ ifndef pe
 	$(error missing required param 'pe' (2 FASTA/FASTQ file(s)))
 endif
 
-clean:
-	rm -f *.fai *.bf *.txt *.seed*.fa _summary.tsv \
-		*-4.fa *.partial
+clean: check-name-param
+	rm -f $(name).seed.fa{,.fai} $(name).seed_mp.{bf,txt} $(name).seed_pe.fa.gz
 
 #------------------------------------------------------------
 # pipeline rules
