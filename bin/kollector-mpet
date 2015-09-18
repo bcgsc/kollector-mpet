@@ -15,6 +15,7 @@ Options:
     -C        don't clean up intermediate files (for debugging)
     -h        show this help message
     -j N      threads [1]
+    -k N      k-mer size for ABySS contig assembly [50]
     -K N      k-mer size for read overlap detection [25]
     -m N      max iterations for recruiting PET reads [10]
     -n N      max k-mers to recruit in total [25000]
@@ -37,6 +38,7 @@ set -eu -o pipefail
 # default values for options
 max_iterations=15
 j=1
+k=50
 K=25
 prefix=kollect
 s=0.5
@@ -46,13 +48,14 @@ help=0
 clean=1
 
 # parse command line options
-while getopts :a:d:hCj:K:m:n:o:r:s:S: opt; do
+while getopts :a:d:hCj:k:K:m:n:o:r:s:S: opt; do
 	case $opt in
 		a) ref=$OPTARG;;
 		C) clean=0;;
 		d) mpet_dist=$OPTARG;;
 		h) help=1;;
 		j) j=$OPTARG;;
+		k) k=$OPTARG;;
 		K) K=$OPTARG;;
 		m) max_iterations=$OPTARG;;
 		n) max_kmers=$OPTARG;;
@@ -156,10 +159,27 @@ for i in $(seq 1 $max_iterations); do
 done
 
 # clean up last iteration
+gzip -f $prefix-$i.fa
 if [ $clean -eq 1 ]; then
-	mv $prefix-$i.fa $prefix.fa
+	mv $prefix-$i.fa.gz $prefix.fa.gz
 	kollector-recruit.mk name=$prefix-$i clean
 else
-	rm -f $prefix.fa
-	ln -s $prefix-$i.fa $prefix.fa
+	rm -f $prefix.fa.gz
+	ln -s $prefix-$i.fa.gz $prefix.fa.gz
+fi
+
+#------------------------------------------------------------
+# Contig assembly with ABySS
+#------------------------------------------------------------
+
+abyss_dir=$(mktemp -d --tmpdir=. abyss.XXXXXXXX)
+abyss-pe -C $abyss_dir k=$k name=$prefix in=../$prefix.fa.gz contigs
+
+# clean up assembly
+if [ $clean -eq 1 ]; then
+	rm $prefix.fa.gz
+	gzip -c $abyss_dir/$prefix-6.fa > $prefix-contigs.fa.gz
+	rm -rf $abyss_dir
+else
+	ln -s $abyss_dir/$prefix-6.fa $prefix-contigs.fa
 fi
