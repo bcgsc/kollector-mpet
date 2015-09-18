@@ -159,27 +159,35 @@ for i in $(seq 1 $max_iterations); do
 done
 
 # clean up last iteration
-gzip -f $prefix-$i.fa
 if [ $clean -eq 1 ]; then
-	mv $prefix-$i.fa.gz $prefix.fa.gz
+	mv $prefix-$i.fa $prefix.fa
 	kollector-recruit.mk name=$prefix-$i clean
 else
-	rm -f $prefix.fa.gz
-	ln -s $prefix-$i.fa.gz $prefix.fa.gz
+	ln -sf $prefix-$i.fa $prefix.fa
 fi
 
 #------------------------------------------------------------
 # Contig assembly with ABySS
 #------------------------------------------------------------
 
-abyss_dir=$(mktemp -d --tmpdir=. abyss.XXXXXXXX)
-abyss-pe -C $abyss_dir k=$k name=$prefix in=../$prefix.fa.gz contigs
+abyss_dir=abyss
+mkdir -p $abyss_dir
+
+abyss-pe -C $abyss_dir k=$k name=$prefix in=../$prefix.fa contigs
 
 # clean up assembly
 if [ $clean -eq 1 ]; then
-	rm $prefix.fa.gz
+	rm $prefix.fa
 	gzip -c $abyss_dir/$prefix-6.fa > $prefix-contigs.fa.gz
 	rm -rf $abyss_dir
 else
-	ln -s $abyss_dir/$prefix-6.fa $prefix-contigs.fa
+	gzip $abyss_dir/$prefix-6.fa
+	ln -sf $abyss_dir/$prefix-6.fa.gz $prefix-contigs.fa.gz
 fi
+
+#------------------------------------------------------------
+# Extract successfully assembled MPET frags
+#------------------------------------------------------------
+
+kollector-extract.mk name=$prefix-frags contigs=$prefix-contigs.fa.gz \
+	mpet=$seed_mp j=$j
