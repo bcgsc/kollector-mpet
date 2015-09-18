@@ -103,7 +103,7 @@ heading "Recruiting a maximum of $max_kmers k-mers"
 # align seed MPETs
 if [ "${ref+defined}" = 'defined' ]; then
 	heading "Aligning seed MPET reads..."
-	kollector-align.mk query=$seed_mp ref=$ref j=$j
+	kollector-align.mk query=$seed_mp ref=$ref j=$j name=$(basename $seed_mp)
 fi
 
 # build seed FASTA file for recruiting PET reads
@@ -114,7 +114,7 @@ kollector-tag.mk name=$prefix seed_mp=$seed_mp pe="$pet1 $pet2" \
 # align seed MPETs and PETs
 if [ "${ref+defined}" = 'defined' ]; then
 	heading "Aligning seed MPET and PET reads..."
-	kollector-align.mk query=$prefix.seed.fa ref=$ref j=$j
+	kollector-align.mk query=$prefix.seed.fa ref=$ref j=$j name=$prefix.seed.fa
 fi
 
 #------------------------------------------------------------
@@ -145,7 +145,7 @@ for i in $(seq 1 $max_iterations); do
 	# align PETs gathered so far to reference genome (debugging)
 	if [ "${ref+defined}" = 'defined' ]; then
 		heading "Aligning PET reads (iteration $i)..."
-		kollector-align.mk query=$prefix-$i.fa ref=$ref j=$j
+		kollector-align.mk query=$prefix-$i.fa ref=$ref j=$j name=$prefix-$i.fa
 	fi
 	
 	# check for stopping condition

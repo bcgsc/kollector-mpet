@@ -17,9 +17,12 @@ j?=1
 
 default: align
 
-align: check-params $(query).sorted.bam.bai
+align: check-params $(name).sorted.bam.bai
 
 check-params:
+ifndef name
+	$(error missing required param 'name' (output file prefix))
+endif
 ifndef query
 	$(error missing required param 'query' (interleaved FASTA))
 endif
@@ -31,9 +34,9 @@ endif
 # alignment rules
 #------------------------------------------------------------
 
-%.sam.gz: %
-	bwa mem -t $j $(ref) <(abyss-tofastq --fasta $* | awk '(NR-1)%4<=1') \
-		<(abyss-tofastq --fasta $* | awk '(NR-1)%4>=2') | \
+$(name).sam.gz: $(query)
+	bwa mem -t $j $(ref) <(abyss-tofastq --fasta $^ | awk '(NR-1)%4<=1') \
+		<(abyss-tofastq --fasta $^ | awk '(NR-1)%4>=2') | \
 		gzip > $@.partial
 	mv $@.partial $@
 
