@@ -19,16 +19,21 @@ j?=1
 .PHONY: check-params
 default: $(name).fa.gz
 
-check-params:
+check-name-param:
 ifndef name
 	$(error missing required param 'name' (output file prefix))
 endif
+
+check-params: check-name-param
 ifndef contigs
 	$(error missing required param 'contigs' (assembled contigs FASTA))
 endif
 ifndef mpet
 	$(error missing required param 'mpet' (2 FASTA/FASTQ file(s)))
 endif
+
+clean: check-name-param
+	rm -f $(filtered_contigs)* $(name){.sam.gz,-ids.txt}
 
 #------------------------------------------------------------
 # alignment rules

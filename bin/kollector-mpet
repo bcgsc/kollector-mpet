@@ -241,15 +241,16 @@ mkdir -p $abyss_dir
 abyss-pe -C $abyss_dir k=$k name=$prefix contigs
 
 # clean up assembly
+abyss_contigs=$prefix.abyss-contigs.fa.gz
 if [ $clean -eq 1 ]; then
 	for lib in $(seq 1 $num_pet_libs); do
 		rm -f $prefix.pet-$lib.fa.gz
 	done
-	gzip -c $abyss_dir/$prefix-6.fa > $prefix-contigs.fa.gz
+	gzip -c $abyss_dir/$prefix-6.fa > $abyss_contigs
 	rm -rf $abyss_dir
 else
 	gzip -f $abyss_dir/$prefix-6.fa
-	ln -sf $abyss_dir/$prefix-6.fa.gz $prefix-contigs.fa.gz
+	ln -sf $abyss_dir/$prefix-6.fa.gz $abyss_contigs
 fi
 
 #------------------------------------------------------------
@@ -258,5 +259,11 @@ fi
 
 heading "Extracting successfully assembled MPET fragments from ABySS contigs..."
 
-kollector-extract.mk name=$prefix-frags contigs=$prefix-contigs.fa.gz \
+kollector-extract.mk name=$prefix-assembly contigs=$abyss_contigs \
 	mpet="$mpet1 $mpet2" j=$j
+
+# clean up from extraction work
+if [ $clean -eq 1 ]; then
+	rm -f $abyss_contigs
+	kollector-extract.mk name=$prefix-assembly clean
+fi
