@@ -29,6 +29,13 @@ Options:
     -C        don't clean up intermediate files (for debugging)
     -h        show this help message
     -j N      threads [1]
+    -l N      min match length for recruiting seed PETs using
+              seed MPETs as bait; only one of the PET reads
+              of each pair needs to match [30]
+    -L N      min match length for recruiting PETs using
+              previously recruited PETs as bait; both reads
+              of a PET pair must match with at least this
+              length [15]
     -k N      k-mer size for ABySS contig assembly [50]
     -K N      k-mer size for read overlap detection [25]
     -m N      max iterations for recruiting PET reads [10]
@@ -37,10 +44,6 @@ Options:
     -r FILE   Bloom filter containing repeat k-mers for
               exclusion from scoring calculations; must match
               k-mer size selected with -K opt [disabled]
-    -s N      min score for recruiting seed PETs using seed MPETs;
-              floating point number between 0 and 1 [0.5]
-    -S N      min score for recruiting PETs from seed PETs and MPETs;
-              floating point number between 0 and 1 [0.3]
 HEREDOC
 
 set -eu -o pipefail
@@ -54,15 +57,15 @@ max_iterations=15
 j=1
 k=50
 K=25
+l=30
+L=15
 prefix=kollect
-s=0.5
 max_kmers=25000
-S=0.3
 help=0
 clean=1
 
 # parse command line options
-while getopts :a:d:hCj:k:K:m:n:o:r:s:S: opt; do
+while getopts :a:d:hCj:k:K:l:L:m:n:o:r: opt; do
 	case $opt in
 		a) ref=$OPTARG;;
 		C) clean=0;;
@@ -71,12 +74,12 @@ while getopts :a:d:hCj:k:K:m:n:o:r:s:S: opt; do
 		j) j=$OPTARG;;
 		k) k=$OPTARG;;
 		K) K=$OPTARG;;
+		l) l=$OPTARG;;
+		L) L=$OPTARG;;
 		m) max_iterations=$OPTARG;;
 		n) max_kmers=$OPTARG;;
 		o) prefix=$OPTARG;;
 		r) r=$OPTARG;;
-		s) s=$OPTARG;;
-		S) S=$OPTARG;;
 		\?) echo "$PROGRAM: invalid option: $OPTARG"; exit 1;;
 	esac
 done
@@ -131,7 +134,7 @@ fi
 # build seed FASTA file for recruiting PET reads
 heading 'Building seed FASTA file...'
 kollector-tag.mk name=$prefix mp="$mpet1 $mpet2" pe="$all_pet" \
-	n=$max_kmers j=$j s=$s k=$K ${r+subtract=$r}
+	n=$max_kmers j=$j s=$l k=$K ${r+subtract=$r}
 
 # align seed MPETs and PETs
 if [ "${ref+defined}" = 'defined' ]; then
@@ -166,7 +169,7 @@ for i in $(seq 1 $max_iterations); do
 
 		# recruit PETs with paired overlap to previously recruited PETs
 		kollector-recruit.mk name=$prefix-$i.pet-$lib seed=$seed \
-			pe="$read1 $read2" s=$S n=$max_kmers j=$j k=$K ${r+subtract=$r}
+			pe="$read1 $read2" s=$L n=$max_kmers j=$j k=$K ${r+subtract=$r}
 
 		# aggregate reads recruited from each PET lib
 		# (seed file for next iteration)
