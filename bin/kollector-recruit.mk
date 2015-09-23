@@ -32,10 +32,7 @@ ifndef name
 	$(error missing required param 'name' (output file prefix))
 endif
 
-check-params:
-ifndef name
-	$(error missing required param 'name' (output file prefix))
-endif
+check-params: check-name-param
 ifndef seed
 	$(error missing required param 'seed' (FASTA file))
 endif
@@ -43,7 +40,7 @@ ifndef pe
 	$(error missing required param 'pe' (2 FASTA/FASTQ file(s)))
 endif
 
-clean:
+clean: check-name-param
 	rm -f $(name).{fa,fa.gz,fa.fai,bf,txt,tsv}
 
 #------------------------------------------------------------
