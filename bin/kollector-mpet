@@ -9,6 +9,8 @@ read -r -d '' USAGE <<HEREDOC
 Usage: $PROGRAM [options] <mpet_read1.fq> <mpet_read2.fq> \\
    <pet_read1.fq> <pet_read2.fq> [<pet_read1.fq> <pet_read2.fq>]...
 
+Description:
+
 Do a targeted assembly of MPET fragment(s) using ABySS. The
 input files are MPET and PET sequencing reads which must be provided
 as FASTA/FASTQ pairs.  The input files may be gzipped.
@@ -24,6 +26,7 @@ It is recommended to trim the adapter sequences from the MPET
 reads before running this script.
 
 Options:
+
     -a FILE   align reads to reference genome FILE after
               each iteration (for debugging) [disabled]
     -C        don't clean up intermediate files (for debugging)
@@ -44,8 +47,19 @@ Options:
     -r FILE   Bloom filter containing repeat k-mers for
               exclusion from scoring calculations; must match
               k-mer size selected with -K opt [disabled]
-    -R FILE   write resource usage to FILE (wall clock time,
-              peak disk space) [disabled]
+    -R FILE   print summary report to FILE (see description
+              of fields below) [disabled]
+
+Summary report:
+
+    (1) 'mpet': num input MPET pairs
+    (2) 'mpet_assembled': num MPET frags assembled
+    (3) 'percent_mpet_assembled': percent MPET frags assembled
+    (4) 'kmers_recruited': num distinct k-mers recruited
+    (5) 'N50': N50 assembly metric
+    (6) 'sum': total number of bases assembled
+    (7) 'wallclock_time': running time in seconds
+    (8) 'peak_disk_usage': peak disk space usage in bytes
 HEREDOC
 
 set -eu -o pipefail
@@ -65,6 +79,7 @@ prefix=kollect
 max_kmers=25000
 help=0
 clean=1
+R=/dev/null
 
 # parse command line options
 while getopts :a:d:hCj:k:K:l:L:m:n:o:r:R: opt; do
@@ -122,6 +137,7 @@ function heading() {
 	echo '-----------------------------------------'
 }
 
+# track peak disk space usage
 function update_peak_disk_usage() {
 	disk_usage=$(du -sb | cut -f1)
 	if [ $disk_usage -gt $peak_disk_usage ]; then
@@ -297,19 +313,40 @@ if [ $clean -eq 1 ]; then
 	kollector-extract.mk name=$prefix-assembly clean
 fi
 
+assembly=$prefix-assembly.fa.gz
+
 #------------------------------------------------------------
-# Report resource usage
+# Print summary report
 #------------------------------------------------------------
 
+heading "Results:"
+
+mpet=$(bioawk -c fastx 'END {print NR}' $mpet1)
+mpet_assembled=$(bioawk -c fastx 'END {print NR}' $assembly)
+percent_mpet_assembled=$(echo "scale=2; $mpet_assembled/$mpet" | bc)
+kmers_recruited=$kmers
+N50=$(abyss-fac $assembly | sed 1d | cut -f6)
+sum=$(abyss-fac $assembly | sed 1d | cut -f10)
 stop_time=$(date +%s)
 wallclock_time=$(($stop_time - $start_time))
 
-msg="Resource usage:"
-msg="$msg\n\tWallclock time: $wallclock_time sec"
-msg="$msg\n\tPeak disk usage: $peak_disk_usage bytes"
-heading $msg
-
-if [ "${R+defined}" = 'defined' ]; then
-	printf 'wallclock_time\tpeak_disk_usage\n' > $R
-	printf '%d\t%d\n' $wallclock_time $peak_disk_usage >> $R
-fi
+echo -e \
+	mpet \
+	mpet_assembled \
+	percent_mpet_assembled \
+	kmers_recruited \
+	N50 \
+	sum \
+	wallclock_time \
+	peak_disk_usage "\n" \
+	$mpet \
+	$mpet_assembled \
+	$percent_mpet_assembled \
+	$kmers_recruited \
+	$N50 \
+	$sum \
+	$wallclock_time \
+	$peak_disk_usage | \
+		sed -r 's/\s+/\t/g' | \
+		tee $R | \
+		column -t
