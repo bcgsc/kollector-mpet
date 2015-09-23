@@ -6,9 +6,22 @@
 
 PROGRAM=$(basename $0)
 read -r -d '' USAGE <<HEREDOC
-Usage: $PROGRAM [options] <mpet_read1.fq> <mpet_read2.fq> <pet_read1.fq> <pet_read2.fq>
+Usage: $PROGRAM [options] <mpet_read1.fq> <mpet_read2.fq> \\
+   <pet_read1.fq> <pet_read2.fq> [<pet_read1.fq> <pet_read2.fq>]...
 
-Gather PET reads for targeted assembly of MPET fragment(s).
+Do a targeted assembly of MPET fragment(s) using ABySS. The
+input files are MPET and PET sequencing reads which must be provided
+as FASTA/FASTQ pairs.  The input files may be gzipped.
+
+The MPET read pairs act as anchors for recruiting PET reads for
+the assembly. As such, the coverage depth of the MPET pairs is not
+important to ensure a good outcome.  The most significant factors
+affecting the results are the the length of the MPET reads, the
+sequencing error rate of the MPET reads, and the coverage depth
+of the PET reads.
+
+It is recommended to trim the adapter sequences from the MPET
+reads before running this script.
 
 Options:
     -a FILE   align reads to reference genome FILE after
@@ -75,15 +88,22 @@ if [ $help -ne 0 ]; then
 	exit 0;
 fi
 
-# we expect exactly 4 file arguments
-if [ $# -ne 4 ]; then
+# we expect 4 or more file arguments, and
+# the number of file arguments must be a
+# multiple of 2.
+if [ $# -lt 4 -o $(($# % 2)) -ne 0 ]; then
 	echo "$USAGE" >&2
 	exit 1;
 fi
+
 mpet1=$1; shift;
 mpet2=$1; shift;
-pet1=$1; shift;
-pet2=$1; shift;
+num_pet_libs=$(($# / 2))
+all_pet="$@"
+for lib in $(seq 1 $num_pet_libs); do
+	pet_read1[$lib]=$1; shift;
+	pet_read2[$lib]=$1; shift;
+done
 
 #------------------------------------------------------------
 # Helper functions
@@ -92,7 +112,7 @@ pet2=$1; shift;
 # print progress message
 function heading() {
 	echo '-----------------------------------------'
-	echo "$@"
+	echo -e "$@"
 	echo '-----------------------------------------'
 }
 
@@ -105,12 +125,12 @@ heading "Recruiting a maximum of $max_kmers k-mers"
 # align seed MPETs
 if [ "${ref+defined}" = 'defined' ]; then
 	heading "Aligning seed MPET reads..."
-	kollector-align.mk query="$mpet1 $mpet2" ref=$ref j=$j name=$(prefix).seed_mp
+	kollector-align.mk query="$mpet1 $mpet2" ref=$ref j=$j name=$prefix.seed_mp
 fi
 
 # build seed FASTA file for recruiting PET reads
 heading 'Building seed FASTA file...'
-kollector-tag.mk name=$prefix mp="$mpet1 $mpet2" pe="$pet1 $pet2" \
+kollector-tag.mk name=$prefix mp="$mpet1 $mpet2" pe="$all_pet" \
 	n=$max_kmers j=$j s=$s k=$K ${r+subtract=$r}
 
 # align seed MPETs and PETs
@@ -125,71 +145,118 @@ fi
 
 for i in $(seq 1 $max_iterations); do
 
-	# recruit PETs with paired overlap to previously recruited PETs
+	prev_i=$(($i-1))
 	heading "Recruiting PET reads (iteration $i)..."
-	if [ $i -eq 1 ]; then
-		seed=$prefix.seed.fa
-	else
-		seed=$prefix-$(($i-1)).fa
-	fi
-	kollector-recruit.mk name=$prefix-$i seed=$seed pe="$pet1 $pet2" \
-		s=$S n=$max_kmers j=$j k=$K ${r+subtract=$r}
 
-	# delete files from prev iteration
-	if [ $clean -eq 1 ]; then
-		if [ $i -eq 1 ]; then
-			kollector-tag.mk name=$prefix clean
+	for lib in $(seq 1 $num_pet_libs); do
+
+		prev_lib=$(($lib-1))
+		read1="${pet_read1[$lib]}"
+		read2="${pet_read2[$lib]}"
+		heading "Recruiting reads from PET library $lib\n($read1, $read2)"
+
+		# select seed FASTA file for next round of PET recruitment
+		if [ $i -eq 1 -a $lib -eq 1 ]; then
+			seed=$prefix.seed.fa
+		elif [ $lib -eq 1 ]; then
+			seed=$prefix-$prev_i.all-pet.fa
 		else
-			kollector-recruit.mk name=$prefix-$(($i-1)) clean
+			seed=$prefix-$i.all-pet.fa
 		fi
-	fi
 
-	# align PETs gathered so far to reference genome (debugging)
-	if [ "${ref+defined}" = 'defined' ]; then
-		heading "Aligning PET reads (iteration $i)..."
-		kollector-align.mk query=$prefix-$i.fa ref=$ref j=$j name=$prefix-$i.fa
-	fi
-	
-	# check for stopping condition
-	kmers=$(awk -F= '$1=="num_entries" {print $2}' $prefix-$i.txt)
-	heading "Recruited $kmers distinct k-mers so far (iteration $i)..."
-	if [ $kmers -ge $max_kmers ]; then
-		heading "Stopping. Recruited k-mers ($kmers) exceeded limit ($max_kmers)"
-		break
-	fi
+		# recruit PETs with paired overlap to previously recruited PETs
+		kollector-recruit.mk name=$prefix-$i.pet-$lib seed=$seed \
+			pe="$read1 $read2" s=$S n=$max_kmers j=$j k=$K ${r+subtract=$r}
 
-done
+		# aggregate reads recruited from each PET lib
+		# (seed file for next iteration)
+		if [ $lib -eq 1 ]; then
+			zcat $prefix-$i.pet-$lib.fa.gz > $prefix-$i.all-pet.fa
+		else
+			zcat $prefix-$i.pet-$lib.fa.gz >> $prefix-$i.all-pet.fa
+		fi
+
+		# delete files from prev iteration
+		if [ $clean -eq 1 ]; then
+			if [ $i -eq 1 ]; then
+				kollector-tag.mk name=$prefix clean
+			else
+				kollector-recruit.mk name=$prefix-$prev_i.pet-$lib clean
+			fi
+		fi
+
+		# align all recruited PETs to reference genome (debugging)
+		if [ "${ref+defined}" = 'defined' ]; then
+			heading "Aligning all PET reads recruited so far..."
+			kollector-align.mk query=$prefix-$i.pet-$lib.fa.gz ref=$ref \
+				j=$j name=$prefix-$i.pet-$lib
+		fi
+
+		# check for stopping condition
+		kmers=$(awk -F= '$1=="num_entries" {sum+=$2} END {print sum}' \
+			$prefix-$i.pet-$lib.txt)
+		heading "Recruited $kmers distinct k-mers so far."
+		if [ $kmers -ge $max_kmers ]; then
+			heading "Stopping. Recruited k-mers ($kmers) exceeded limit ($max_kmers)"
+			break
+		fi
+
+	done # for each PET library
+
+done # for each iteration
 
 # clean up last iteration
 if [ $clean -eq 1 ]; then
-	mv $prefix-$i.fa $prefix.fa
-	kollector-recruit.mk name=$prefix-$i clean
+	rm -f $prefix-$i.all-pet.fa
+	for lib in $(seq 1 $num_pet_libs); do
+		mv $prefix-$i.pet-$lib.fa.gz $prefix.pet-$lib.fa.gz
+		kollector-recruit.mk name=$prefix-$i.pet-$lib clean
+	done
 else
-	ln -sf $prefix-$i.fa $prefix.fa
+	for lib in $(seq 1 $num_pet_libs); do
+		ln -sf $prefix-$i.pet-$lib.fa.gz $prefix.pet-$lib.fa.gz
+	done
 fi
 
 #------------------------------------------------------------
 # Contig assembly with ABySS
 #------------------------------------------------------------
 
-abyss_dir=abyss
-mkdir -p $abyss_dir
+heading "Running ABySS contig assembly..."
 
-abyss-pe -C $abyss_dir k=$k name=$prefix in=../$prefix.fa contigs
+# set input sequence library params for ABySS
+for i in $(seq 1 $num_pet_libs); do
+	if [ $i -eq 1 ]; then
+		export lib="pet$i"
+	else
+		export lib="$lib pet$i"
+	fi
+	abs_path=$(readlink -f $prefix.pet-$i.fa.gz)
+	eval "export pet$i=$abs_path"
+done
+
+# run ABySS
+abyss_dir=$prefix.abyss
+mkdir -p $abyss_dir
+abyss-pe -C $abyss_dir k=$k name=$prefix contigs
 
 # clean up assembly
 if [ $clean -eq 1 ]; then
-	rm $prefix.fa
+	for lib in $(seq 1 $num_pet_libs); do
+		rm -f $prefix.pet-$lib.fa.gz
+	done
 	gzip -c $abyss_dir/$prefix-6.fa > $prefix-contigs.fa.gz
 	rm -rf $abyss_dir
 else
-	gzip $abyss_dir/$prefix-6.fa
+	gzip -f $abyss_dir/$prefix-6.fa
 	ln -sf $abyss_dir/$prefix-6.fa.gz $prefix-contigs.fa.gz
 fi
 
 #------------------------------------------------------------
 # Extract successfully assembled MPET frags
 #------------------------------------------------------------
+
+heading "Extracting successfully assembled MPET fragments from ABySS contigs..."
 
 kollector-extract.mk name=$prefix-frags contigs=$prefix-contigs.fa.gz \
 	mpet="$mpet1 $mpet2" j=$j

@@ -33,14 +33,14 @@ endif
 
 check-params: check-name-param
 ifndef mp
-	$(error missing required param 'mp' (FASTA/FASTQ file(s)))
+	$(error missing required param 'mp' (MPET FASTA/FASTQ file(s)))
 endif
 ifndef pe
-	$(error missing required param 'pe' (2 FASTA/FASTQ file(s)))
+	$(error missing required param 'pe' (FASTA/FASTQ file pair(s)))
 endif
 
 clean: check-name-param
-	rm -f $(name).seed.fa{,.fai} $(name).seed_mp.{bf,txt} $(name).seed_pe.fa.gz
+	rm -f $(name).seed.fa{,.fai} $(name).seed_mp.{bf,txt} $(name).seed_pe.fa
 
 #------------------------------------------------------------
 # pipeline rules
@@ -62,13 +62,18 @@ $(name).seed_mp.bf: $(name).seed_mp.fa.fai
 	biobloommaker -k $k -p $(name).seed_mp -f $(max_fpr) -t $j \
 		-n $n $(name).seed_mp.fa $(if $(subtract),-s $(subtract))
 
-# get seed PET (PETs with single-end matches to seed MPET)
-$(name).seed_pe.fa.gz: $(name).seed_mp.bf $(pe)
-	biobloomcategorizer -t $j -d $(name).seed_mp -f $(name).seed_mp.bf -t $j \
-		-s $s -e -i $(pe) | gzip > $@.partial
+# get seed PETs (PETs with single-end matches to seed MPETs)
+$(name).seed_pe.fa: $(name).seed_mp.bf $(pe)
+	rm -f $@.partial
+	for i in $$(seq 1 2 $(words $(pe))); do \
+		file1=$$(echo $(pe) | tr -s ' ' '\t' | cut -f$$i); \
+		file2=$$(echo $(pe) | tr -s ' ' '\t' | cut -f$$(($$i+1))); \
+		biobloomcategorizer -t $j -d $(name).seed_mp -f $(name).seed_mp.bf -t $j \
+			-s $s -e -i $$file1 $$file2 >> $@.partial; \
+	done
 	mv $@.partial $@
 
 # combine seed MPET reads and seed PET reads
-$(name).seed.fa: $(name).seed_mp.fa $(name).seed_pe.fa.gz
+$(name).seed.fa: $(name).seed_mp.fa $(name).seed_pe.fa
 	abyss-tofastq --fasta $^ > $@.partial
 	mv $@.partial $@

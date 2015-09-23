@@ -25,7 +25,7 @@ n?=30000
 
 default: recruit
 
-recruit: check-params $(name).fa
+recruit: check-params $(name).fa.gz
 
 check-name-param:
 ifndef name
@@ -44,7 +44,7 @@ ifndef pe
 endif
 
 clean:
-	rm -f $(name).{fa,fa.fai,bf,txt,tsv}
+	rm -f $(name).{fa,fa.gz,fa.fai,bf,txt,tsv}
 
 #------------------------------------------------------------
 # pipeline rules
@@ -60,8 +60,8 @@ $(name).bf: $(seed).fai $(pe)
 		-r $s $(if $(subtract),-s $(subtract)) $(seed) $(pe)
 
 # build FASTA for recruited PETs
-$(name).fa: $(name).bf
+$(name).fa.gz: $(name).bf
 	biobloomcategorizer -t $j -d $(name) -f $(name).bf -t $j -s 0.99 -e $(pe) | \
-		abyss-tofastq --fasta > $@.partial
+		abyss-tofastq --fasta | gzip > $@.partial
 	mv $@.partial $@
 	mv _summary.tsv $(name).tsv
