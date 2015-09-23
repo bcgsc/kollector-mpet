@@ -44,6 +44,8 @@ Options:
     -r FILE   Bloom filter containing repeat k-mers for
               exclusion from scoring calculations; must match
               k-mer size selected with -K opt [disabled]
+    -R FILE   write resource usage to FILE (wall clock time,
+              peak disk space) [disabled]
 HEREDOC
 
 set -eu -o pipefail
@@ -65,7 +67,7 @@ help=0
 clean=1
 
 # parse command line options
-while getopts :a:d:hCj:k:K:l:L:m:n:o:r: opt; do
+while getopts :a:d:hCj:k:K:l:L:m:n:o:r:R: opt; do
 	case $opt in
 		a) ref=$OPTARG;;
 		C) clean=0;;
@@ -80,6 +82,7 @@ while getopts :a:d:hCj:k:K:l:L:m:n:o:r: opt; do
 		n) max_kmers=$OPTARG;;
 		o) prefix=$OPTARG;;
 		r) r=$OPTARG;;
+		R) R=$OPTARG;;
 		\?) echo "$PROGRAM: invalid option: $OPTARG"; exit 1;;
 	esac
 done
@@ -119,7 +122,20 @@ function heading() {
 	echo '-----------------------------------------'
 }
 
+function update_peak_disk_usage() {
+	disk_usage=$(du -sb | cut -f1)
+	if [ $disk_usage -gt $peak_disk_usage ]; then
+		peak_disk_usage=$disk_usage
+	fi
+}
+
+#------------------------------------------------------------
+# Start up
+#------------------------------------------------------------
+
 heading "Recruiting a maximum of $max_kmers k-mers"
+start_time=$(date +%s)
+peak_disk_usage=0
 
 #------------------------------------------------------------
 # Tag seed MPET/PET read pairs
@@ -141,6 +157,8 @@ if [ "${ref+defined}" = 'defined' ]; then
 	heading "Aligning seed MPET and PET reads..."
 	kollector-align.mk query=$prefix.seed.fa ref=$ref j=$j name=$prefix.seed.fa
 fi
+
+update_peak_disk_usage
 
 #------------------------------------------------------------
 # Iteratively recruit PET read pairs from seed PET/MPET
@@ -179,6 +197,8 @@ for i in $(seq 1 $max_iterations); do
 			zcat $prefix-$i.pet-$lib.fa.gz >> $prefix-$i.all-pet.fa
 		fi
 
+		update_peak_disk_usage
+
 		# delete files from prev iteration
 		if [ $clean -eq 1 ]; then
 			if [ $i -eq 1 ]; then
@@ -194,6 +214,8 @@ for i in $(seq 1 $max_iterations); do
 			kollector-align.mk query=$prefix-$i.pet-$lib.fa.gz ref=$ref \
 				j=$j name=$prefix-$i.pet-$lib
 		fi
+
+		update_peak_disk_usage
 
 		# check for stopping condition
 		kmers=$(awk -F= '$1=="num_entries" {sum+=$2} END {print sum}' \
@@ -243,6 +265,8 @@ abyss_dir=$prefix.abyss
 mkdir -p $abyss_dir
 abyss-pe -C $abyss_dir k=$k name=$prefix contigs
 
+update_peak_disk_usage
+
 # clean up assembly
 abyss_contigs=$prefix.abyss-contigs.fa.gz
 if [ $clean -eq 1 ]; then
@@ -265,8 +289,27 @@ heading "Extracting successfully assembled MPET fragments from ABySS contigs..."
 kollector-extract.mk name=$prefix-assembly contigs=$abyss_contigs \
 	mpet="$mpet1 $mpet2" j=$j
 
+update_peak_disk_usage
+
 # clean up from extraction work
 if [ $clean -eq 1 ]; then
 	rm -f $abyss_contigs
 	kollector-extract.mk name=$prefix-assembly clean
+fi
+
+#------------------------------------------------------------
+# Report resource usage
+#------------------------------------------------------------
+
+stop_time=$(date +%s)
+wallclock_time=$(($stop_time - $start_time))
+
+msg="Resource usage:"
+msg="$msg\n\tWallclock time: $wallclock_time sec"
+msg="$msg\n\tPeak disk usage: $peak_disk_usage bytes"
+heading $msg
+
+if [ "${R+defined}" = 'defined' ]; then
+	printf 'wallclock_time\tpeak_disk_usage\n' > $R
+	printf '%d\t%d\n' $wallclock_time $peak_disk_usage >> $R
 fi
