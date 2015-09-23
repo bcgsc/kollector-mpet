@@ -5,7 +5,7 @@ Scripts for targeted assembly of MPET fragments using PET reads. These are wrapp
 # Usage
 
 ```
-Usage: kollector-mpet [options] <mpet_read1.fq> <mpet_read2.fq> \\
+Usage: kollector-mpet [options] <mpet_read1.fq> <mpet_read2.fq> \
    <pet_read1.fq> <pet_read2.fq> [<pet_read1.fq> <pet_read2.fq>]...
 
 Do a targeted assembly of MPET fragment(s) using ABySS. The
@@ -15,7 +15,7 @@ as FASTA/FASTQ pairs.  The input files may be gzipped.
 The MPET read pairs act as anchors for recruiting PET reads for
 the assembly. As such, the coverage depth of the MPET pairs is not
 important to ensure a good outcome.  The most significant factors
-affecting the results are the the length of the MPET reads, the
+affecting the results are the length of the MPET reads, the
 sequencing error rate of the MPET reads, and the coverage depth
 of the PET reads.
 
