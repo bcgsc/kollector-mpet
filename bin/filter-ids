@@ -1,0 +1,8 @@
+#!/bin/bash
+# Usage: filter-ids ids-to-exclude.txt alignments.sam
+awk '
+# first file
+FNR==NR { ids[$0]=1 }
+# second file
+FNR!=NR && !ids[$1] { print }
+' "$@"
