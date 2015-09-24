@@ -6,7 +6,6 @@ Scripts for targeted assembly of MPET fragments using PET reads. These are wrapp
 
 ```
 $ kollector-mpet -h
-read -r -d '' USAGE <<HEREDOC
 Usage: $PROGRAM [options] <mpet_read1.fq> <mpet_read2.fq> \
    <pet_read1.fq> <pet_read2.fq> [<pet_read1.fq> <pet_read2.fq>]...
 
