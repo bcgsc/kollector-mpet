@@ -27,9 +27,14 @@ reads before running this script.
 
 Options:
 
-    -a FILE   align reads to reference genome FILE after
-              each iteration (for debugging) [disabled]
+    -a        align reads to reference genome (specified by -g)
+              after each iteration (for debugging) [disabled]
     -C        don't clean up intermediate files (for debugging)
+    -e        evaluate assembled MPET fragments by aligning
+              to the reference sequence (specified by -g)
+              [disabled]
+    -g FILE   use FILE for the reference genome (required if
+              using -a or -e options) [disabled]
     -h        show this help message
     -j N      threads [1]
     -l N      min match length for recruiting seed PETs using
@@ -69,12 +74,14 @@ set -eu -o pipefail
 #------------------------------------------------------------
 
 # default values for options
-max_iterations=15
+align=0
+evaluate=0
 j=1
 k=50
 K=25
 l=30
 L=15
+max_iterations=10
 prefix=kollect
 max_kmers=25000
 help=0
@@ -82,11 +89,13 @@ clean=1
 R=/dev/null
 
 # parse command line options
-while getopts :a:d:hCj:k:K:l:L:m:n:o:r:R: opt; do
+while getopts :ad:eg:hCj:k:K:l:L:m:n:o:r:R: opt; do
 	case $opt in
-		a) ref=$OPTARG;;
+		a) align=1;;
 		C) clean=0;;
 		d) mpet_dist=$OPTARG;;
+		e) evaluate=1;;
+		g) ref=$OPTARG;;
 		h) help=1;;
 		j) j=$OPTARG;;
 		k) k=$OPTARG;;
@@ -113,8 +122,18 @@ fi
 # the number of file arguments must be a
 # multiple of 2.
 if [ $# -lt 4 -o $(($# % 2)) -ne 0 ]; then
+    echo "error: number of file args must be >= 4 and a multiple of 2" >&2
 	echo "$USAGE" >&2
-	exit 1;
+	exit 1
+fi
+
+# -a and -e also require providing a reference genome with -g
+if [ $align -ne 0 -o $evaluate -ne 0 ] && \
+	[ ${ref:-undefined} -eq 'undefined' ]; then
+	echo "error: must provide a reference genome with -g when using -a or -e" \
+		>&2
+	echo "$USAGE" >&2
+	exit 1
 fi
 
 mpet1=$1; shift;
@@ -158,7 +177,7 @@ peak_disk_usage=0
 #------------------------------------------------------------
 
 # align seed MPETs
-if [ "${ref+defined}" = 'defined' ]; then
+if [ $align -ne 0 ]; then
 	heading "Aligning seed MPET reads..."
 	kollector-align.mk query="$mpet1 $mpet2" ref=$ref j=$j name=$prefix.seed_mp
 fi
@@ -169,7 +188,7 @@ kollector-tag.mk name=$prefix mp="$mpet1 $mpet2" pe="$all_pet" \
 	n=$max_kmers j=$j s=$l k=$K ${r+subtract=$r}
 
 # align seed MPETs and PETs
-if [ "${ref+defined}" = 'defined' ]; then
+if [ $align -ne 0 ]; then
 	heading "Aligning seed MPET and PET reads..."
 	kollector-align.mk query=$prefix.seed.fa ref=$ref j=$j name=$prefix.seed.fa
 fi
@@ -225,7 +244,7 @@ for i in $(seq 1 $max_iterations); do
 		fi
 
 		# align all recruited PETs to reference genome (debugging)
-		if [ "${ref+defined}" = 'defined' ]; then
+		if [ $align -ne 0 ]; then
 			heading "Aligning all PET reads recruited so far..."
 			kollector-align.mk query=$prefix-$i.pet-$lib.fa.gz ref=$ref \
 				j=$j name=$prefix-$i.pet-$lib
@@ -314,6 +333,15 @@ if [ $clean -eq 1 ]; then
 fi
 
 assembly=$prefix-assembly.fa.gz
+
+#------------------------------------------------------------
+# Calculate edit distances and detect misassemblies
+# by aligning to the reference
+#------------------------------------------------------------
+
+if [ $evaluate -ne 0 ]; then
+	kollector-eval.mk ref=$ref assembly=$assembly name=$prefix
+fi
 
 #------------------------------------------------------------
 # Print summary report
