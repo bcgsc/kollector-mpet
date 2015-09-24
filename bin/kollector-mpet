@@ -122,15 +122,15 @@ fi
 # the number of file arguments must be a
 # multiple of 2.
 if [ $# -lt 4 -o $(($# % 2)) -ne 0 ]; then
-    echo "error: number of file args must be >= 4 and a multiple of 2" >&2
+    echo "Error: number of file args must be >= 4 and a multiple of 2" >&2
 	echo "$USAGE" >&2
 	exit 1
 fi
 
-# -a and -e also require providing a reference genome with -g
+# -a and -e also require a reference genome (with -g)
 if [ $align -ne 0 -o $evaluate -ne 0 ] && \
 	[ ${ref:-undefined} -eq 'undefined' ]; then
-	echo "error: must provide a reference genome with -g when using -a or -e" \
+	echo "Error: must provide a reference genome with -g when using -a or -e" \
 		>&2
 	echo "$USAGE" >&2
 	exit 1
