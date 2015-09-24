@@ -2,7 +2,7 @@
 # Usage: filter-ids ids-to-exclude.txt alignments.sam
 awk '
 # first file
-FNR==NR { ids[$0]=1 }
+FILENAME==ARGV[1] { ids[$0]=1; next }
 # second file
-FNR!=NR && !ids[$1] { print }
+!($1 in ids) { print }
 ' "$@"
