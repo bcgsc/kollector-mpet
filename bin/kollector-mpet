@@ -258,7 +258,8 @@ for i in $(seq 1 $max_iterations); do
 		heading "Recruited $kmers distinct k-mers so far."
 		if [ $kmers -ge $max_kmers ]; then
 			heading "Stopping. Recruited k-mers ($kmers) exceeded limit ($max_kmers)"
-			break
+			# break out of both inner and outer loop
+			break 2
 		fi
 
 	done # for each PET library
