@@ -357,7 +357,7 @@ fi
 heading "Results:"
 
 mpet=$(bioawk -c fastx 'END {print NR}' $mpet1)
-mpet_assembled=$(bioawk -c fastx 'END {print NR}' $assembly)
+mpet_assembled=$(zcat $assembly | { egrep -c '^>' || true; } )
 percent_mpet_assembled=$(echo "scale=2; $mpet_assembled/$mpet" | bc)
 kmers_recruited=$kmers
 N50=$(abyss-fac $assembly | sed 1d | cut -f6)
