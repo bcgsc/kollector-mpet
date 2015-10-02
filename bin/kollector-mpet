@@ -168,6 +168,31 @@ function update_peak_disk_usage() {
 	fi
 }
 
+# log mem usage in background (in megabytes)
+function start_mem_logging() {
+	peak_mem_file=$prefix.peak-mem-mb.txt
+	rm -f $peak_mem_file
+	(
+		base_mem=$(free -m | awk 'NR==3{print $3}')
+		peak_mem=$base_mem
+		trap 'echo $(($peak_mem - $base_mem)) > $peak_mem_file; exit $?' \
+			EXIT INT TERM KILL
+		while true; do
+			mem=$(free -m | awk 'NR==3{print $3}')
+			if [ $mem -gt $peak_mem ]; then peak_mem=$mem; fi
+			sleep 1
+		done
+	) &
+	mem_logger_pid=$!
+	trap "kill $mem_logger_pid" INT TERM KILL
+}
+
+# stop logging mem usage in background
+function stop_mem_logging() {
+	kill $mem_logger_pid
+	wait $mem_logger_pid
+}
+
 #------------------------------------------------------------
 # Start up
 #------------------------------------------------------------
@@ -175,6 +200,7 @@ function update_peak_disk_usage() {
 heading "Recruiting a maximum of $max_kmers k-mers"
 start_time=$(date +%s)
 peak_disk_usage=0
+start_mem_logging
 
 #------------------------------------------------------------
 # Tag seed MPET/PET read pairs
@@ -342,6 +368,8 @@ fi
 
 assembly=$prefix-assembly.fa.gz
 
+stop_mem_logging
+
 #------------------------------------------------------------
 # Calculate edit distances and detect misassemblies
 # by aligning to the reference
@@ -365,6 +393,7 @@ N50=$(abyss-fac $assembly | sed 1d | cut -f6)
 sum=$(abyss-fac $assembly | sed 1d | cut -f10)
 stop_time=$(date +%s)
 wallclock_time=$(($stop_time - $start_time))
+peak_mem_mb=$(cat $peak_mem_file)
 
 echo -e \
 	mpet \
@@ -375,7 +404,8 @@ echo -e \
 	N50 \
 	sum \
 	wallclock_time \
-	peak_disk_usage "\n" \
+	peak_disk_usage \
+	peak_mem_mb "\n" \
 	$mpet \
 	$mpet_assembled \
 	$percent_mpet_assembled \
@@ -384,7 +414,8 @@ echo -e \
 	$N50 \
 	$sum \
 	$wallclock_time \
-	$peak_disk_usage | \
+	$peak_disk_usage \
+	$peak_mem_mb | \
 		sed -r 's/\s+/\t/g' | \
 		tee $R | \
 		column -t
