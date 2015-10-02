@@ -62,10 +62,11 @@ Summary report:
     (2) 'mpet_assembled': num MPET frags assembled
     (3) 'percent_mpet_assembled': percent MPET frags assembled
     (4) 'kmers_recruited': num distinct k-mers recruited
-    (5) 'N50': N50 assembly metric
-    (6) 'sum': total number of bases assembled
-    (7) 'wallclock_time': running time in seconds
-    (8) 'peak_disk_usage': peak disk space usage in bytes
+    (5) 'iterations": num iterations for recruiting PET
+    (6) 'N50': N50 assembly metric
+    (7) 'sum': total number of bases assembled
+    (8) 'wallclock_time': running time in seconds
+    (9) 'peak_disk_usage': peak disk space usage in bytes
 HEREDOC
 
 set -eu -o pipefail
@@ -370,6 +371,7 @@ echo -e \
 	mpet_assembled \
 	percent_mpet_assembled \
 	kmers_recruited \
+	iterations \
 	N50 \
 	sum \
 	wallclock_time \
@@ -378,6 +380,7 @@ echo -e \
 	$mpet_assembled \
 	$percent_mpet_assembled \
 	$kmers_recruited \
+	$i \
 	$N50 \
 	$sum \
 	$wallclock_time \
