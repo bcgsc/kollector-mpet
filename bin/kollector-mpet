@@ -184,7 +184,7 @@ function start_mem_logging() {
 		done
 	) &
 	mem_logger_pid=$!
-	trap "kill $mem_logger_pid" INT TERM KILL
+	trap "kill $mem_logger_pid; exit $?" INT TERM KILL
 }
 
 # stop logging mem usage in background
