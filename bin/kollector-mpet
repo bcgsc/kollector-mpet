@@ -269,7 +269,13 @@ for i in $(seq 1 $max_iterations); do
 			if [ $i -eq 1 ]; then
 				kollector-tag.mk name=$prefix clean
 			else
-				kollector-recruit.mk name=$prefix-$prev_i.pet-$lib clean
+				if [ $lib -eq 1 ]; then
+					rm -f $prefix-$prev_i.all-pet.fa{,.fai}
+					for lib2 in $(seq 1 $num_pet_libs); do
+						kollector-recruit.mk \
+							name=$prefix-$prev_i.pet-$lib2 clean
+					done
+				fi
 			fi
 		fi
 
