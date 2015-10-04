@@ -361,7 +361,7 @@ fi
 
 heading "Extracting successfully assembled MPET fragments from ABySS contigs..."
 
-kollector-extract.mk name=$prefix-assembly contigs=$abyss_contigs \
+kollector-extract.mk name=$prefix contigs=$abyss_contigs \
 	mpet="$mpet1 $mpet2" j=$j
 
 update_peak_disk_usage
@@ -369,10 +369,10 @@ update_peak_disk_usage
 # clean up from extraction work
 if [ $clean -eq 1 ]; then
 	rm -f $abyss_contigs
-	kollector-extract.mk name=$prefix-assembly clean
+	kollector-extract.mk name=$prefix clean
 fi
 
-assembly=$prefix-assembly.fa.gz
+assembly=$prefix.fa.gz
 
 stop_mem_logging
 
@@ -383,6 +383,9 @@ stop_mem_logging
 
 if [ $evaluate -ne 0 ]; then
 	kollector-eval.mk ref=$ref assembly=$assembly name=$prefix
+	if [ $clean -eq 1 ]; then
+		kollector-eval.mk name=$prefix clean
+	fi
 fi
 
 #------------------------------------------------------------
