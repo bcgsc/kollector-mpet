@@ -16,16 +16,25 @@ j?=1
 .PHONY:
 default: $(name).misassembled-ids.txt $(name).sam2coord.tsv
 
-check-params:
+check-name-param:
+ifndef name
+	$(error missing required param 'name' (output file prefix))
+endif
+
+check-params: check-name-param
 ifndef ref
 	$(error missing required param 'ref' (reference genome))
 endif
 ifndef assembly
 	$(error missing required param 'assembly' (assembled MPET fragments))
 endif
-ifndef name
-	$(error missing required param 'name' (output file prefix))
-endif
+
+clean: check-name-param
+	rm -f $(name).sam.gz
+
+clean-all: clean
+	rm -f $(name).misassembled-ids.txt \
+		$(name).sam2coord.tsv
 
 #------------------------------------------------------------
 # main rules
