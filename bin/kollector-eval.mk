@@ -30,7 +30,8 @@ ifndef assembly
 endif
 
 clean: check-name-param
-	rm -f $(name).sam.gz
+	rm -f $(name).sam.gz \
+		$(assembly).{amb,ann,bwt,pac,sa}
 
 clean-all: clean
 	rm -f $(name).misassembled-ids.txt \
