@@ -193,6 +193,12 @@ function stop_mem_logging() {
 	wait $mem_logger_pid
 }
 
+# log the real elapsed time for a command
+function time_command() {
+	my_filename=$(basename $0)
+	/usr/bin/time -f "COMMAND_TIME: %e %C" "$@"
+}
+
 #------------------------------------------------------------
 # Start up
 #------------------------------------------------------------
@@ -209,18 +215,18 @@ start_mem_logging
 # align seed MPETs
 if [ $align -ne 0 ]; then
 	heading "Aligning seed MPET reads..."
-	kollector-align.mk query="$mpet1 $mpet2" ref=$ref j=$j name=$prefix.seed_mp
+	time_command kollector-align.mk query="$mpet1 $mpet2" ref=$ref j=$j name=$prefix.seed_mp
 fi
 
 # build seed FASTA file for recruiting PET reads
 heading 'Building seed FASTA file...'
-kollector-tag.mk name=$prefix mp="$mpet1 $mpet2" pe="$all_pet" \
+time_command kollector-tag.mk name=$prefix mp="$mpet1 $mpet2" pe="$all_pet" \
 	n=$max_kmers j=$j s=$l k=$K ${r+subtract=$r}
 
 # align seed MPETs and PETs
 if [ $align -ne 0 ]; then
 	heading "Aligning seed MPET and PET reads..."
-	kollector-align.mk query=$prefix.seed.fa ref=$ref j=$j name=$prefix.seed.fa
+	time_command kollector-align.mk query=$prefix.seed.fa ref=$ref j=$j name=$prefix.seed.fa
 fi
 
 update_peak_disk_usage
@@ -251,7 +257,7 @@ for i in $(seq 1 $max_iterations); do
 		fi
 
 		# recruit PETs with paired overlap to previously recruited PETs
-		kollector-recruit.mk name=$prefix-$i.pet-$lib seed=$seed \
+		time_command kollector-recruit.mk name=$prefix-$i.pet-$lib seed=$seed \
 			pe="$read1 $read2" s=$L n=$max_kmers j=$j k=$K ${r+subtract=$r}
 
 		# aggregate reads recruited from each PET lib
@@ -282,7 +288,7 @@ for i in $(seq 1 $max_iterations); do
 		# align all recruited PETs to reference genome (debugging)
 		if [ $align -ne 0 ]; then
 			heading "Aligning all PET reads recruited so far..."
-			kollector-align.mk query=$prefix-$i.pet-$lib.fa.gz ref=$ref \
+			time_command kollector-align.mk query=$prefix-$i.pet-$lib.fa.gz ref=$ref \
 				j=$j name=$prefix-$i.pet-$lib
 		fi
 
@@ -335,7 +341,7 @@ done
 # run ABySS
 abyss_dir=$prefix.abyss
 mkdir -p $abyss_dir
-abyss-pe -C $abyss_dir k=$k name=$prefix np=$j $abyss_opt
+time_command abyss-pe -C $abyss_dir k=$k name=$prefix np=$j $abyss_opt
 
 # Select most recently created FASTA in ABySS output dir.
 # This allows assembly up to different stages with -A opt.
@@ -361,7 +367,7 @@ fi
 
 heading "Extracting successfully assembled MPET fragments from ABySS contigs..."
 
-kollector-extract.mk name=$prefix contigs=$abyss_contigs \
+time_command kollector-extract.mk name=$prefix contigs=$abyss_contigs \
 	mpet="$mpet1 $mpet2" j=$j
 
 update_peak_disk_usage
@@ -382,7 +388,7 @@ stop_mem_logging
 #------------------------------------------------------------
 
 if [ $evaluate -ne 0 ]; then
-	kollector-eval.mk ref=$ref assembly=$assembly name=$prefix
+	time_command kollector-eval.mk ref=$ref assembly=$assembly name=$prefix
 	if [ $clean -eq 1 ]; then
 		kollector-eval.mk name=$prefix clean
 	fi
