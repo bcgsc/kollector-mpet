@@ -411,27 +411,28 @@ stop_time=$(date +%s)
 wallclock_time=$(($stop_time - $start_time))
 peak_mem_mb=$(cat $peak_mem_file)
 
-echo -e \
-	mpet \
-	mpet_assembled \
-	percent_mpet_assembled \
-	kmers_recruited \
-	iterations \
-	N50 \
-	sum \
-	wallclock_time \
-	peak_disk_usage \
-	peak_mem_mb "\n" \
-	$mpet \
-	$mpet_assembled \
-	$percent_mpet_assembled \
-	$kmers_recruited \
-	$i \
-	$N50 \
-	$sum \
-	$wallclock_time \
-	$peak_disk_usage \
-	$peak_mem_mb | \
-		sed -r 's/\s+/\t/g' | \
-		tee $R | \
-		column -t
+cat <<HEREDOC |
+mpet \
+mpet_assembled \
+percent_mpet_assembled \
+kmers_recruited \
+iterations \
+N50 \
+sum \
+wallclock_time \
+peak_disk_usage \
+peak_mem_mb
+$mpet \
+$mpet_assembled \
+$percent_mpet_assembled \
+$kmers_recruited \
+$i \
+$N50 \
+$sum \
+$wallclock_time \
+$peak_disk_usage \
+$peak_mem_mb
+HEREDOC
+	tr -s ' ' '\t' | \
+	tee $R | \
+	column -t
