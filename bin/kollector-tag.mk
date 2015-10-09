@@ -1,5 +1,9 @@
 #!/usr/bin/make -Rrf
+ifdef profile
+SHELL=/usr/bin/time -f '=> kollector-tag.mk: %e %C' /bin/bash -o pipefail
+else
 SHELL=/bin/bash -o pipefail
+endif
 
 #------------------------------------------------------------
 # params

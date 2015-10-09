@@ -195,8 +195,8 @@ function stop_mem_logging() {
 
 # log the real elapsed time for a command
 function time_command() {
-	my_filename=$(basename $0)
-	/usr/bin/time -f "COMMAND_TIME: %e %C" "$@"
+	script_name=$(basename $0)
+	/usr/bin/time -f "=> $script_name: %e %C" "$@"
 }
 
 #------------------------------------------------------------
@@ -221,7 +221,7 @@ fi
 # build seed FASTA file for recruiting PET reads
 heading 'Building seed FASTA file...'
 time_command kollector-tag.mk name=$prefix mp="$mpet1 $mpet2" pe="$all_pet" \
-	n=$max_kmers j=$j s=$l k=$K ${r+subtract=$r}
+	n=$max_kmers j=$j s=$l k=$K ${r+subtract=$r} profile=1
 
 # align seed MPETs and PETs
 if [ $align -ne 0 ]; then
@@ -258,7 +258,8 @@ for i in $(seq 1 $max_iterations); do
 
 		# recruit PETs with paired overlap to previously recruited PETs
 		time_command kollector-recruit.mk name=$prefix-$i.pet-$lib seed=$seed \
-			pe="$read1 $read2" s=$L n=$max_kmers j=$j k=$K ${r+subtract=$r}
+			pe="$read1 $read2" s=$L n=$max_kmers j=$j k=$K ${r+subtract=$r} \
+			profile=1
 
 		# aggregate reads recruited from each PET lib
 		# (seed file for next iteration)
