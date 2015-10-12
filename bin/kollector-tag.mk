@@ -64,7 +64,8 @@ $(name).seed_mp.fa: $(mp)
 # build Bloom filter for seed MPET
 $(name).seed_mp.bf: $(name).seed_mp.fa.fai
 	biobloommaker -k $k -p $(name).seed_mp -f $(max_fpr) -t $j \
-		-n $n $(name).seed_mp.fa $(if $(subtract),-s $(subtract))
+		-n $n $(name).seed_mp.fa $(if $(subtract),-s $(subtract)) \
+		$(if $h,-g $h)
 
 # get seed PETs (PETs with single-end matches to seed MPETs)
 $(name).seed_pe.fa: $(name).seed_mp.bf $(pe)

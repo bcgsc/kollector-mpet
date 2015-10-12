@@ -37,6 +37,7 @@ Options:
     -g FILE   use FILE for the reference genome (required if
               using -a or -e options) [disabled]
     -h        show this help message
+    -H N      num hash functions for Bloom filters [auto]
     -j N      threads [1]
     -l N      min match length for recruiting seed PETs using
               seed MPETs as bait; only one of the PET reads
@@ -92,7 +93,7 @@ R=/dev/null
 abyss_opt='contigs'
 
 # parse command line options
-while getopts :aA:d:eg:hCj:k:K:l:L:m:n:o:r:R: opt; do
+while getopts :aA:d:eg:hH:Cj:k:K:l:L:m:n:o:r:R: opt; do
 	case $opt in
 		a) align=1;;
 		A) abyss_opt="$OPTARG";;
@@ -101,6 +102,7 @@ while getopts :aA:d:eg:hCj:k:K:l:L:m:n:o:r:R: opt; do
 		e) evaluate=1;;
 		g) ref=$OPTARG;;
 		h) help=1;;
+		H) num_hash=$OPTARG;;
 		j) j=$OPTARG;;
 		k) k=$OPTARG;;
 		K) K=$OPTARG;;
@@ -221,7 +223,8 @@ fi
 # build seed FASTA file for recruiting PET reads
 heading 'Building seed FASTA file...'
 time_command kollector-tag.mk name=$prefix mp="$mpet1 $mpet2" pe="$all_pet" \
-	n=$max_kmers j=$j s=$l k=$K ${r+subtract=$r} profile=1
+	n=$max_kmers j=$j s=$l k=$K ${r+subtract=$r} ${num_hash+h=$num_hash} \
+	profile=1
 
 # align seed MPETs and PETs
 if [ $align -ne 0 ]; then
