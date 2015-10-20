@@ -25,6 +25,7 @@ n?=30000
 #------------------------------------------------------------
 
 .PRECIOUS: %.bf
+.DELETE_ON_ERROR:
 .PHONY: check-params recruit
 
 default: recruit
@@ -56,14 +57,9 @@ clean: check-name-param
 	samtools faidx $*
 
 # iteratively add PETs with paired matches to Bloom filter
-$(name).bf: $(seed).fai $(pe)
+$(name).fa.gz: $(seed).fai $(pe)
 	biobloommaker -k $k -p $(name) -f $(max_fpr) -t $j -n $n \
-		-r $s $(if $(subtract),-s $(subtract)) \
-		$(if $h,-g $h) $(seed) $(pe)
-
-# build FASTA for recruited PETs
-$(name).fa.gz: $(name).bf
-	biobloomcategorizer -t $j -d $(name) -f $(name).bf -t $j -s 0.99 -e $(pe) | \
-		abyss-tofastq --fasta | gzip > $@.partial
-	mv $@.partial $@
-	mv _summary.tsv $(name).tsv
+		-r $s -P $(if $(subtract),-s $(subtract)) \
+		$(if $h,-g $h) $(seed) $(pe) | \
+		seqtk seq -A | \
+		gzip > $@
