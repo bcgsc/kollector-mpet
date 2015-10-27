@@ -345,7 +345,7 @@ done
 # run ABySS
 abyss_dir=$prefix.abyss
 mkdir -p $abyss_dir
-time_command abyss-pe -C $abyss_dir k=$k name=$prefix np=$j $abyss_opt
+time_command abyss-pe -C $abyss_dir v=-v k=$k name=$prefix np=$j $abyss_opt
 
 # Select most recently created FASTA in ABySS output dir.
 # This allows assembly up to different stages with -A opt.
