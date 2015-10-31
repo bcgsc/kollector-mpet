@@ -312,6 +312,9 @@ for i in $(seq 1 $max_iterations); do
 
 done # for each iteration
 
+# save number of iterations for reporting below
+iterations=$i
+
 # clean up last iteration
 if [ $clean -eq 1 ]; then
 	rm -f $prefix-$i.all-pet.fa
@@ -429,7 +432,7 @@ $mpet \
 $mpet_assembled \
 $percent_mpet_assembled \
 $kmers_recruited \
-$i \
+$iterations \
 $N50 \
 $sum \
 $wallclock_time \
